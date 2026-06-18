@@ -217,6 +217,54 @@ def has_conflict(grid, r, c, val):
 
     return False
 
+def find_duplicate_warnings(grid):
+    """
+    检查当前棋盘中是否存在重复数字。
+    返回文字提醒列表。
+    """
+    warnings = []
+
+    def check_unit(cells, unit_name):
+        seen = {}
+
+        for r, c in cells:
+            v = grid[r][c]
+
+            if v in DIGITS:
+                if v not in seen:
+                    seen[v] = []
+                seen[v].append((r, c))
+
+        for num, positions in seen.items():
+            if len(positions) > 1:
+                pos_text = "、".join(
+                    [f"第{r + 1}行第{c + 1}列" for r, c in positions]
+                )
+                warnings.append(f"{unit_name} 中数字 {num} 重复：{pos_text}")
+
+    # 检查 9 行
+    for r in range(9):
+        cells = [(r, c) for c in range(9)]
+        check_unit(cells, f"第 {r + 1} 行")
+
+    # 检查 9 列
+    for c in range(9):
+        cells = [(r, c) for r in range(9)]
+        check_unit(cells, f"第 {c + 1} 列")
+
+    # 检查 9 个 3x3 宫
+    palace_id = 1
+    for br in range(0, 9, 3):
+        for bc in range(0, 9, 3):
+            cells = [
+                (r, c)
+                for r in range(br, br + 3)
+                for c in range(bc, bc + 3)
+            ]
+            check_unit(cells, f"第 {palace_id} 宫")
+            palace_id += 1
+
+    return warnings
 
 def check_answer():
     grid = get_current_grid()
@@ -433,6 +481,20 @@ for r in range(9):
     if r in [2, 5]:
         st.markdown('<div class="thick-line"></div>', unsafe_allow_html=True)
 
+# =========================
+# 实时重复提醒
+# =========================
+
+current_grid = get_current_grid()
+duplicate_warnings = find_duplicate_warnings(current_grid)
+
+if duplicate_warnings:
+    st.warning("发现重复填写：")
+    for warning in duplicate_warnings[:10]:
+        st.write(f"- {warning}")
+
+    if len(duplicate_warnings) > 10:
+        st.write(f"- 还有 {len(duplicate_warnings) - 10} 条重复提醒未显示。")
 
 # =========================
 # 信息提示
