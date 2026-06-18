@@ -217,54 +217,45 @@ def has_conflict(grid, r, c, val):
 
     return False
 
-def find_duplicate_warnings(grid):
+def find_duplicate_cells(grid):
     """
-    检查当前棋盘中是否存在重复数字。
-    返回文字提醒列表。
+    找出所有重复数字所在的格子。
+    只要某行、某列、某个 3x3 宫内有重复，就把相关格子加入集合。
     """
-    warnings = []
+    duplicate_cells = set()
 
-    def check_unit(cells, unit_name):
+    def check_unit(cells):
         seen = {}
 
         for r, c in cells:
             v = grid[r][c]
 
             if v in DIGITS:
-                if v not in seen:
-                    seen[v] = []
-                seen[v].append((r, c))
+                seen.setdefault(v, []).append((r, c))
 
-        for num, positions in seen.items():
+        for positions in seen.values():
             if len(positions) > 1:
-                pos_text = "、".join(
-                    [f"第{r + 1}行第{c + 1}列" for r, c in positions]
-                )
-                warnings.append(f"{unit_name} 中数字 {num} 重复：{pos_text}")
+                for pos in positions:
+                    duplicate_cells.add(pos)
 
-    # 检查 9 行
+    # 检查每一行
     for r in range(9):
-        cells = [(r, c) for c in range(9)]
-        check_unit(cells, f"第 {r + 1} 行")
+        check_unit([(r, c) for c in range(9)])
 
-    # 检查 9 列
+    # 检查每一列
     for c in range(9):
-        cells = [(r, c) for r in range(9)]
-        check_unit(cells, f"第 {c + 1} 列")
+        check_unit([(r, c) for r in range(9)])
 
-    # 检查 9 个 3x3 宫
-    palace_id = 1
+    # 检查每个 3x3 宫
     for br in range(0, 9, 3):
         for bc in range(0, 9, 3):
-            cells = [
+            check_unit([
                 (r, c)
                 for r in range(br, br + 3)
                 for c in range(bc, bc + 3)
-            ]
-            check_unit(cells, f"第 {palace_id} 宫")
-            palace_id += 1
+            ])
 
-    return warnings
+    return duplicate_cells
 
 def check_answer():
     grid = get_current_grid()
@@ -454,6 +445,31 @@ puzzle = st.session_state.puzzle
 prefill = st.session_state.prefill
 game_id = st.session_state.game_id
 
+# 找出重复格子
+current_grid = get_current_grid()
+duplicate_cells = find_duplicate_cells(current_grid)
+
+# 给重复格子加橙色边框
+conflict_css = []
+
+for r, c in duplicate_cells:
+    conflict_css.append(
+        f"""
+        div[data-testid="stTextInput"]:has(input[aria-label="cell-{game_id}-{r}-{c}"]) input,
+        div[data-testid="stTextInput"]:has(input[aria-label="fixed-{game_id}-{r}-{c}"]) input {{
+            border: 3px solid #ff9800 !important;
+            box-shadow: 0 0 0 1px #ff9800 !important;
+            background-color: #fff7e6 !important;
+        }}
+        """
+    )
+
+if conflict_css:
+    st.markdown(
+        "<style>" + "\n".join(conflict_css) + "</style>",
+        unsafe_allow_html=True,
+    )
+
 for r in range(9):
     cols = st.columns(9, gap="small")
 
@@ -481,20 +497,6 @@ for r in range(9):
     if r in [2, 5]:
         st.markdown('<div class="thick-line"></div>', unsafe_allow_html=True)
 
-# =========================
-# 实时重复提醒
-# =========================
-
-current_grid = get_current_grid()
-duplicate_warnings = find_duplicate_warnings(current_grid)
-
-if duplicate_warnings:
-    st.warning("发现重复填写：")
-    for warning in duplicate_warnings[:10]:
-        st.write(f"- {warning}")
-
-    if len(duplicate_warnings) > 10:
-        st.write(f"- 还有 {len(duplicate_warnings) - 10} 条重复提醒未显示。")
 
 # =========================
 # 信息提示
